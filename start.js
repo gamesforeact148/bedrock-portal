@@ -3,38 +3,12 @@ const fs = require('fs');
 const path = require('path');
 const { BedrockPortal, Joinability, Modules } = require('bedrock-portal');
 
-// Automatically detect Railway persistent volume
-// Railway exposes the mount under /var/lib/containers/railwayapp/bind-mounts
-const railwayVolumeRoot = '/var/lib/containers/railwayapp/bind-mounts';
-let mountedVolume = null;
+// Fixed persistent volume path
+const VOLUME_PATH = '/data'; // Make sure your Railway volume is mounted here
+const FRIENDS_PATH = path.join(VOLUME_PATH, 'friends.json');
+const MSA_TOKEN_PATH = path.join(VOLUME_PATH, 'msa.json');
 
-// Pick the first volume folder if multiple exist
-if (fs.existsSync(railwayVolumeRoot)) {
-  const dirs = fs.readdirSync(railwayVolumeRoot, { withFileTypes: true })
-    .filter(d => d.isDirectory())
-    .map(d => path.join(railwayVolumeRoot, d.name));
-  if (dirs.length > 0) {
-    const volumeDirs = fs.readdirSync(dirs[0], { withFileTypes: true })
-      .filter(d => d.isDirectory() && d.name.startsWith('vol_'))
-      .map(d => path.join(dirs[0], d.name));
-    if (volumeDirs.length > 0) {
-      mountedVolume = volumeDirs[0];
-    }
-  }
-}
-
-if (!mountedVolume) {
-  console.error('Persistent volume not found! Exiting.');
-  process.exit(1);
-}
-
-console.log('Using persistent volume:', mountedVolume);
-
-// Paths for storage
-const FRIENDS_PATH = path.join(mountedVolume, 'friends.json');
-const MSA_TOKEN_PATH = path.join(mountedVolume, 'msa.json');
-
-// Load friends list
+// Load friends from persistent storage
 const loadFriends = () => {
   if (fs.existsSync(FRIENDS_PATH)) {
     return JSON.parse(fs.readFileSync(FRIENDS_PATH, 'utf-8'));
@@ -42,24 +16,26 @@ const loadFriends = () => {
   return [];
 };
 
-// Save friends list
+// Save friends to persistent storage
 const saveFriends = (friends) => {
   fs.writeFileSync(FRIENDS_PATH, JSON.stringify(friends, null, 2));
 };
 
 const main = async () => {
+  // Initialize the portal
   const portal = new BedrockPortal({
     ip: 'donutsmp.net',
     port: 19132,
     joinability: Joinability.FriendsOfFriends,
     sessionName: 'loresmp',
-    msaTokenPath: MSA_TOKEN_PATH // <-- Save MSA token in persistent volume
+    msaTokenPath: MSA_TOKEN_PATH // <-- Save Microsoft/Xbox token here
   });
 
-  // Load friends from storage
+  // Load previously saved friends
   const savedFriends = loadFriends();
   console.log('Loaded friends from storage:', savedFriends);
 
+  // Configure AutoFriendAdd module
   portal.use(Modules.AutoFriendAdd, {
     inviteOnAdd: true,
     conditionToMeet: (player) => player.presenceState === 'Online',
@@ -87,4 +63,7 @@ const main = async () => {
   console.log('Portal started! Your friends will see "My Awesome World".');
 };
 
-main();
+// Run the bot
+main().catch(err => {
+  console.error('Error starting the portal:', err);
+});
