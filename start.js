@@ -24,8 +24,8 @@ const saveFriends = (friends) => {
 const main = async () => {
   // Initialize the portal
   const portal = new BedrockPortal({
-    ip: 'loresmps1.aternos.me',
-    port: 16446,
+    ip: 'loresmps.msch.io',
+    port: 19132,
     joinability: Joinability.FriendsOfFriends,
     sessionName: 'loresmp',
     msaTokenPath: MSA_TOKEN_PATH // <-- Save Microsoft/Xbox token here
