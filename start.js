@@ -8,6 +8,9 @@ const VOLUME_PATH = '/data'; // Make sure your Railway volume is mounted here
 const FRIENDS_PATH = path.join(VOLUME_PATH, 'friends.json');
 const MSA_TOKEN_PATH = path.join(VOLUME_PATH, 'msa.json');
 
+// Hardcoded world name
+const WORLD_NAME = 'loresmp'; // <-- default world name
+
 // Load friends from persistent storage
 const loadFriends = () => {
   if (fs.existsSync(FRIENDS_PATH)) {
@@ -27,7 +30,7 @@ const main = async () => {
     ip: '191.96.231.10',
     port: 12596,
     joinability: Joinability.FriendsOfFriends,
-    sessionName: 'loresmp',
+    sessionName: WORLD_NAME, // uses the hardcoded world name
     msaTokenPath: MSA_TOKEN_PATH // <-- Save Microsoft/Xbox token here
   });
 
@@ -60,7 +63,7 @@ const main = async () => {
   });
 
   await portal.start();
-  console.log('Portal started! Your friends will see "My Awesome World".');
+  console.log(`Portal started! Your friends will see "${WORLD_NAME}".`);
 };
 
 // Run the bot
