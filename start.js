@@ -24,7 +24,7 @@ const saveFriends = (friends) => {
 const main = async () => {
   // Initialize the portal
   const portal = new BedrockPortal({
-    ip: 'loresmps.msch.io',
+    ip: 'loresmp.msch.io',
     port: 19132,
     joinability: Joinability.FriendsOfFriends,
     sessionName: 'loresmp',
