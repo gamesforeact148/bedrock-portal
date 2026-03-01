@@ -1,20 +1,50 @@
+// bedrock-portal-railway.js
 const fs = require('fs');
 const path = require('path');
 const { BedrockPortal, Joinability, Modules } = require('bedrock-portal');
 
-// Use Railway persistent storage path
-// In Railway, you might mount a volume to /data
-const STORAGE_PATH = path.join('/data', 'friends.json');
+// Automatically detect Railway persistent volume
+// Railway exposes the mount under /var/lib/containers/railwayapp/bind-mounts
+const railwayVolumeRoot = '/var/lib/containers/railwayapp/bind-mounts';
+let mountedVolume = null;
 
+// Pick the first volume folder if multiple exist
+if (fs.existsSync(railwayVolumeRoot)) {
+  const dirs = fs.readdirSync(railwayVolumeRoot, { withFileTypes: true })
+    .filter(d => d.isDirectory())
+    .map(d => path.join(railwayVolumeRoot, d.name));
+  if (dirs.length > 0) {
+    const volumeDirs = fs.readdirSync(dirs[0], { withFileTypes: true })
+      .filter(d => d.isDirectory() && d.name.startsWith('vol_'))
+      .map(d => path.join(dirs[0], d.name));
+    if (volumeDirs.length > 0) {
+      mountedVolume = volumeDirs[0];
+    }
+  }
+}
+
+if (!mountedVolume) {
+  console.error('Persistent volume not found! Exiting.');
+  process.exit(1);
+}
+
+console.log('Using persistent volume:', mountedVolume);
+
+// Paths for storage
+const FRIENDS_PATH = path.join(mountedVolume, 'friends.json');
+const MSA_TOKEN_PATH = path.join(mountedVolume, 'msa.json');
+
+// Load friends list
 const loadFriends = () => {
-  if (fs.existsSync(STORAGE_PATH)) {
-    return JSON.parse(fs.readFileSync(STORAGE_PATH, 'utf-8'));
+  if (fs.existsSync(FRIENDS_PATH)) {
+    return JSON.parse(fs.readFileSync(FRIENDS_PATH, 'utf-8'));
   }
   return [];
 };
 
+// Save friends list
 const saveFriends = (friends) => {
-  fs.writeFileSync(STORAGE_PATH, JSON.stringify(friends, null, 2));
+  fs.writeFileSync(FRIENDS_PATH, JSON.stringify(friends, null, 2));
 };
 
 const main = async () => {
@@ -22,10 +52,11 @@ const main = async () => {
     ip: 'donutsmp.net',
     port: 19132,
     joinability: Joinability.FriendsOfFriends,
-    sessionName: 'loresmp'
+    sessionName: 'loresmp',
+    msaTokenPath: MSA_TOKEN_PATH // <-- Save MSA token in persistent volume
   });
 
-  // Load previously saved friends
+  // Load friends from storage
   const savedFriends = loadFriends();
   console.log('Loaded friends from storage:', savedFriends);
 
@@ -37,8 +68,10 @@ const main = async () => {
     removeInterval: 2000,
     onFriendAdded: (player) => {
       console.log(`Added friend: ${player.username}`);
-      savedFriends.push(player.username);
-      saveFriends(savedFriends);
+      if (!savedFriends.includes(player.username)) {
+        savedFriends.push(player.username);
+        saveFriends(savedFriends);
+      }
     },
     onFriendRemoved: (player) => {
       console.log(`Removed friend: ${player.username}`);
